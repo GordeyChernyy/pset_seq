@@ -239,10 +239,9 @@ m.pset_seq.init = function (pset_exclusion_tables, pset_exclusion_table_labels)
   end )
 
   params:add_option("pset_seq_mode","pset seq mode", {"loop", "up/down", "random"})
-  params:add_number("load_pset", "load pset", 1, m.pset_seq.get_num_psets(),1,nil, false, false)
 
-  params:set_action("load_pset", function(x) 
-    m.pset_seq.set_num_psets()
+  params:add_number("load_pset", "load pset", 1, m.pset_seq.get_num_psets(),1,nil, false, false)
+  params:set_action("load_pset", function(x)
     m.pset_seq.get_num_psets() 
     local param = params:lookup_param("load_pset")
     param.max = m.pset_seq.get_num_psets() 
@@ -254,9 +253,29 @@ m.pset_seq.init = function (pset_exclusion_tables, pset_exclusion_table_labels)
     params.value = x
     params:read(x)
     param.value = x
-  
-  end )
-  
+  end)
+
+  for i=1, 3 do
+    params:add_number("load_pset_"..i, "load pset "..i, 1, m.pset_seq.get_num_psets(),1,nil, false, false)
+    params:set_action("load_pset_"..i, function(x) m.pset_seq.load_pset(x, i) end)
+  end
+
+  function m.pset_seq.load_pset(x, i)
+    print("load_pset"..x)
+    m.pset_seq.set_num_psets()
+    m.pset_seq.get_num_psets() 
+    local param = params:lookup_param("load_pset_"..i)
+    param.max = m.pset_seq.get_num_psets() 
+    
+    if x>param.max then 
+      x = param.max 
+      param.value = param.max 
+    end
+    params.value = x
+    params:read(x)
+    param.value = x
+  end
+
   params:add_number("pset_seq_beats", "pset seq beats", 1, 16, 4)
   params:set_action("pset_seq_beats", function() 
     m.pset_seq.set_ticks_per_seq_cycle() 
