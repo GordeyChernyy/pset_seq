@@ -61,6 +61,7 @@ end)
 
 m.pset_seq = {}
 m.pset_seq.pset_path = nil
+m.load_pset_count = 3
 
 -- set pset exclusions
 function m.pset_seq.set_pset_param_exclusions(pset_exclusion_tables, pset_exclusion_table_labels)
@@ -180,7 +181,7 @@ m.pset_seq.init = function (pset_exclusion_tables, pset_exclusion_table_labels)
   
   local num_pset_exclusion_sets = pset_exclusion_table_labels and #pset_exclusion_table_labels+1 or 0
   
-  params:add_group("PSET SEQUENCER",10+num_pset_exclusion_sets)
+  params:add_group("PSET SEQUENCER",10+num_pset_exclusion_sets+m.load_pset_count)
   
   function m.pset_seq.update_mod_midi()
     -- setup midi
@@ -255,7 +256,7 @@ m.pset_seq.init = function (pset_exclusion_tables, pset_exclusion_table_labels)
     param.value = x
   end)
 
-  for i=1, 3 do
+  for i=1, m.load_pset_count do
     params:add_number("load_pset_"..i, "load pset "..i, 1, m.pset_seq.get_num_psets(),1,nil, false, false)
     params:set_action("load_pset_"..i, function(x) m.pset_seq.load_pset(x, i) end)
   end
@@ -343,9 +344,18 @@ m.pset_seq.init = function (pset_exclusion_tables, pset_exclusion_table_labels)
   -- INCLUDES HACK FOR FLORA to exclude plow screen params max level & max time by default until envelope PSET bug is fixed
   if m.pset_seq.pset_path == "/flora" then
     m.pset_seq.default_exclusions = {"pset_seq_enabled","pset_seq_mode","load_pset", "pset_seq_beats","pset_seq_beats_per_bar","plow1_max_level","plow1_max_time","plow2_max_level","plow2_max_time"}
+    
+    for i=1, m.load_pset_count do
+      table.insert(m.pset_seq.default_exclusions, "load_pset_"..i)
+    end
   else
     m.pset_seq.default_exclusions = {"pset_seq_enabled","pset_seq_mode","load_pset", "pset_seq_beats","pset_seq_beats_per_bar", "pset_first", "pset_last"}
+
+    for i=1, m.load_pset_count do
+      table.insert(m.pset_seq.default_exclusions, "load_pset_"..i)
+    end
   end
+
   m.pset_seq.set_save_paramlist(m.pset_seq.default_exclusions, false)
 
   -- set the custom pset exclusions (defined in the script's main lua file, e.g., `flora.lua`)
