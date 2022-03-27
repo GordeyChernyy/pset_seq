@@ -61,7 +61,8 @@ end)
 
 m.pset_seq = {}
 m.pset_seq.pset_path = nil
-m.load_pset_count = 3
+m.load_pset_count = 10
+m.load_script_count = 4
 
 -- set pset exclusions
 function m.pset_seq.set_pset_param_exclusions(pset_exclusion_tables, pset_exclusion_table_labels)
@@ -181,7 +182,9 @@ m.pset_seq.init = function (pset_exclusion_tables, pset_exclusion_table_labels)
   
   local num_pset_exclusion_sets = pset_exclusion_table_labels and #pset_exclusion_table_labels+1 or 0
   
-  params:add_group("PSET SEQUENCER",10+num_pset_exclusion_sets+m.load_pset_count)
+  local group_count = 11 + num_pset_exclusion_sets + m.load_pset_count + m.load_script_count*2
+
+  params:add_group("PSET SEQUENCER", group_count)
   
   function m.pset_seq.update_mod_midi()
     -- setup midi
@@ -260,6 +263,43 @@ m.pset_seq.init = function (pset_exclusion_tables, pset_exclusion_table_labels)
     params:add_number("load_pset_"..i, "load pset "..i, 1, m.pset_seq.get_num_psets(),1,nil, false, false)
     params:set_action("load_pset_"..i, function(x) m.pset_seq.load_pset(x, i) end)
   end
+
+
+  -- load existing settings
+
+  local script_file = _path.data.."scripts_to_load.txt"
+  local scripts_to_load = tab.load(script_file)
+
+
+  for i=1, m.load_script_count do
+    if #scripts_to_load > 0 then
+      params:add_file("script_"..i, "script "..i, scripts_to_load[i])
+    else
+      params:add_file("script_"..i, "script "..i)
+    end
+  end
+
+  for i=1, m.load_script_count do
+    params:add_binary("load_script_"..i, "load script "..i, "trigger", 0)
+    params:set_action("load_script_"..i, 
+      function(value)
+        local script = params:get("script_"..i)
+        norns.script.load(script)
+      end)
+  end
+
+
+  params:add_binary("save_script_to_load", "save script to load", "trigger", 0)
+  params:set_action("save_script_to_load", 
+    function(value)
+      local scripts_to_load = {}
+      for i=1, m.load_script_count do
+        table.insert(scripts_to_load, params:get("script_"..i))
+      end
+     
+      tab.save(scripts_to_load, script_file)  
+      print("save to: "..script_file) 
+    end)
 
   function m.pset_seq.load_pset(x, i)
     print("load_pset"..x)
@@ -344,15 +384,36 @@ m.pset_seq.init = function (pset_exclusion_tables, pset_exclusion_table_labels)
   -- INCLUDES HACK FOR FLORA to exclude plow screen params max level & max time by default until envelope PSET bug is fixed
   if m.pset_seq.pset_path == "/flora" then
     m.pset_seq.default_exclusions = {"pset_seq_enabled","pset_seq_mode","load_pset", "pset_seq_beats","pset_seq_beats_per_bar","plow1_max_level","plow1_max_time","plow2_max_level","plow2_max_time"}
-    
-    for i=1, m.load_pset_count do
-      table.insert(m.pset_seq.default_exclusions, "load_pset_"..i)
-    end
   else
     m.pset_seq.default_exclusions = {"pset_seq_enabled","pset_seq_mode","load_pset", "pset_seq_beats","pset_seq_beats_per_bar", "pset_first", "pset_last"}
 
+    table.insert(m.pset_seq.default_exclusions, "save_script_to_load")
     for i=1, m.load_pset_count do
       table.insert(m.pset_seq.default_exclusions, "load_pset_"..i)
+      
+    end
+    for i=1, m.load_script_count do
+      table.insert(m.pset_seq.default_exclusions, "script_"..i)
+      table.insert(m.pset_seq.default_exclusions, "load_script_"..i)
+    end
+  end
+
+  function m.pset_seq.set_pset_first(val)
+    m.pset_seq.set_num_psets()    
+    local first = params:lookup_param("pset_first")
+    first.max = m.pset_seq.get_num_psets()
+
+    if first.value == 0 then
+      params:set("pset_first",1) 
+    elseif first.value > first.max then 
+      params:set("pset_first",first.max) 
+    end
+
+    if val then
+      local clamped_val = util.clamp(val,1,params:get("pset_last"))
+      if val > clamped_val then 
+        params:set("pset_first",clamped_val) 
+      end
     end
   end
 
